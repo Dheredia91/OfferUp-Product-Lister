@@ -3,12 +3,68 @@ from appium.webdriver.common.appiumby import AppiumBy
 from appium.webdriver.common.touch_action import TouchAction
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from dotenv import load_dotenv
 import time
+import subprocess
+import os
+import re
 
-TITLE = "object"
-CHOICE = "New"
-PRICE = "20"
-ZIPCODE = "95212"
+## step 1.) run IDE or command prompt as Administrator
+## Choices: New, Reconditioned/Certified, Open box(never used), Used(normal wear), For parts, Other(see description)
+
+# Load variables from .env
+load_dotenv()
+
+# The name of your task
+task_name = os.environ.get("TASKNAME")
+
+# Enable the task
+subprocess.run(['schtasks', '/change', '/tn', task_name, '/enable'])
+
+# Run the task
+subprocess.run(['schtasks', '/run', '/tn', task_name])
+time.sleep(45)  
+
+# Start adb server
+subprocess.run(["adb", "start-server"], shell=True)
+subprocess.run(["adb", "devices"], shell=True)
+subprocess.Popen(["appium"], shell=True)
+time.sleep(60)  
+
+def add_spaces_to_camel_case(s):
+    # Add a space before all occurrences of a lowercase letter followed by an uppercase letter
+    return re.sub(r'(?<=[a-z])(?=[A-Z])', ' ', s)
+
+directory_path = os.environ.get("DIRECTORY")
+filenames = sorted(os.listdir(directory_path), key=lambda x: os.path.getctime(os.path.join(directory_path, x)),reverse=True)
+print(filenames)
+
+i = 0
+count = 0
+
+for filename in filenames:
+    
+    parts = filename.split('-')   
+     
+    if len(parts) == 3:  
+        
+        i += 1
+        if i == 2:
+            break
+
+        title, choice, price = parts
+        title = add_spaces_to_camel_case(title)
+        price = price.strip(".jpg")
+
+    count += 1
+
+print(title,choice,price)
+print(count)
+
+TITLE = title
+CHOICE = choice
+PRICE = price
+ZIPCODE = os.environ.get("ZIPCODE")
 
 capabilities = dict(
     platformName='Android',
@@ -46,16 +102,11 @@ select = WebDriverWait(driver, 20).until(
 select.click()
 select.click()
 
-
-image1 = WebDriverWait(driver, 20).until(
-    EC.presence_of_element_located((AppiumBy.ANDROID_UIAUTOMATOR, 'new UiSelector().resourceId("post-flow-select-photos-screen.item.1")'))
-)
-image1.click()
-
-image2 = WebDriverWait(driver, 20).until(
-    EC.presence_of_element_located((AppiumBy.ANDROID_UIAUTOMATOR, 'new UiSelector().resourceId("post-flow-select-photos-screen.item.2")'))
-)
-image2.click()
+for index in range(1, count + 1):
+    image = WebDriverWait(driver, 20).until(
+    EC.presence_of_element_located((AppiumBy.ANDROID_UIAUTOMATOR, f'new UiSelector().resourceId("post-flow-select-photos-screen.item.{index}")'))
+    )
+    image.click()
 
 done = WebDriverWait(driver, 20).until(
     EC.presence_of_element_located((AppiumBy.ANDROID_UIAUTOMATOR, 'new UiSelector().resourceId("post-flow-select-photos-screen.done.button")'))
@@ -126,9 +177,15 @@ ship = WebDriverWait(driver, 20).until(
 )
 ship.click()
 
-# post_item = WebDriverWait(driver, 20).until(
-#     EC.presence_of_element_located((AppiumBy.ANDROID_UIAUTOMATOR, 'new UiSelector().resourceId("post-flow-screen.4.post.button")'))
-# )
-# post_item.click()
+for index, filename in enumerate(filenames):
+    if index < count:
+        os.remove(os.path.join(directory_path, filename))
+        print("file deleted:", filename)
+
+
+post_item = WebDriverWait(driver, 20).until(
+    EC.presence_of_element_located((AppiumBy.ANDROID_UIAUTOMATOR, 'new UiSelector().resourceId("post-flow-screen.4.post.button")'))
+)
+post_item.click()
 
 
